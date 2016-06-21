@@ -1,6 +1,24 @@
 #################################################################### 
 ################## Creare's Magento .htaccess File #################
+############ https://github.com/Creare/magento-htaccess ############
 #################################################################### 
+
+### Prevent sftp-config.json from being loaded:
+<files sftp-config.json>
+    order allow,deny
+    deny from all
+</files>
+
+### Protect .htaccess
+<Files ~ "^.*\.([Hh][Tt][Aa])">
+    order allow,deny
+    deny from all
+    satisfy all
+</Files>
+
+##### Recognise SSL when set at a load balancer/proxy level (for CloudFlare) #####
+
+SetEnvIf X-Forwarded-Proto https HTTPS=on
 
 ##### Block unwanted Bots that clog the server #####
 
@@ -35,10 +53,11 @@
 	
 	##### Redirect away from /index.php and /home	
 	##### Warning: This index.php rewrite will prevent Magento 
-	##### Connect from working. Simply comment out the 	
-	##### following two lines of code when using Connect.
+	##### Connect from working if the /downloader path is changed.
+	##### Simply change downloader to the new path of Magento Connect.
 	##### Please note - http://www. if not using www simply use http://
 	
+	RewriteCond %{REQUEST_URI}  !(downloader) [NC]
 	RewriteCond %{THE_REQUEST} ^.*/index.php
 	RewriteRule ^(.*)index.php$ http://www.yourdomain.com/$1 [R=301,L]
   
@@ -59,7 +78,7 @@
 ##### mod_deflate compresses your output to lower the file size being sent to the client #####
 
 <IfModule mod_deflate.c>
-	SetOutputFilter DEFLATE
+	AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript
 	BrowserMatch ^Mozilla/4 gzip-only-text/html
 	BrowserMatch ^Mozilla/4\.0[678] no-gzip
 	BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
@@ -86,12 +105,17 @@
 
 
 ##### disable POST processing to not break multiple image upload #####
+# To disable mod_security in your VirtualHost configuration, add the following:
+# <LocationMatch  "/(admin|downloader)">
+#   <IfModule mod_security2.c>
+#     SecRuleEngine Off 
+#   </IfModule>
+# </LocationMatch>
 
 <IfModule mod_security.c> 
-	SecFilterEngine Off 
+	#SecRuleEngine Off 
 	SecFilterScanPOST Off
 </IfModule> 
-
 	
 ##### Enable apache served files compression #####
 
@@ -105,10 +129,17 @@
 	AddOutputFilterByType DEFLATE application/rss+xml
 	AddOutputFilterByType DEFLATE application/javascript
 	AddOutputFilterByType DEFLATE application/x-javascript
+	AddOutputFilterByType DEFLATE application/x-httpd-php
+  	AddOutputFilterByType DEFLATE application/cgi-php5
+  	AddOutputFilterByType DEFLATE application/cgi-php53
+  	AddOutputFilterByType DEFLATE application/cgi-php54
 	BrowserMatch ^Mozilla/4 gzip-only-text/html
 	BrowserMatch ^Mozilla/4\.0[678] no-gzip
 	BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
 	SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png)$ no-gzip dont-vary
+	SetEnvIfNoCase Request_URI \.(?:exe|t?gz|zip|bz2|sit|rar)$ no-gzip dont-vary
+  	SetEnvIfNoCase Request_URI \.(?:pdf|doc)$ no-gzip dont-vary
+  	SetEnvIfNoCase Request_URI \.(?:avi|mov|mp3|mp4|rm)$ no-gzip dont-vary
 	Header append Vary User-Agent env=!dont-vary
 </IfModule>
 
@@ -118,7 +149,7 @@
 <ifModule mod_gzip.c>
 	mod_gzip_on Yes
 	mod_gzip_dechunk Yes
-	mod_gzip_item_include file \.(html?|txt|css|js|php|pl)$
+	mod_gzip_item_include  \.(html?|txt|css|js|php|pl)$
 	mod_gzip_item_include handler ^cgi-script$
 	mod_gzip_item_include mime ^text/.*
 	mod_gzip_item_include mime ^application/x-javascript.*
@@ -208,7 +239,8 @@
 	#AddDefaultCharset UTF-8
 	
 	
-##### Force IE8 compatibility when using IE8+ #####
+##### Force IE8 compatibility when using IE8+         #####
+##### May cause issues within Windows Mobile Browsers ##### 
 	
 	BrowserMatch MSIE best-standards-support
 	Header set X-UA-Compatible IE=8 env=best-standards-support
